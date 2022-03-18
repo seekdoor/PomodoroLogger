@@ -2,16 +2,14 @@ import * as electron from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { screenshotDir } from '../../config';
-import { generateRandomName } from '../utils';
-
-const remote = electron.remote;
+import * as remote from '@electron/remote';
 
 const getCurrentScreen = () => {
     try {
         const screen = electron.screen || remote.screen;
         const currentWindow = remote.getCurrentWindow();
         const { x, y } = currentWindow.getBounds();
-        return screen.getAllDisplays().filter(d => {
+        return screen.getAllDisplays().filter((d) => {
             return (
                 x <= d.bounds.x + d.bounds.width &&
                 x >= d.bounds.x &&
@@ -83,58 +81,55 @@ function getScreenCallback(
     };
 
     if (require('os').platform() === 'win32') {
-        require('electron').desktopCapturer.getSources(
-            {
+        require('electron')
+            .desktopCapturer.getSources({
                 types: ['screen'],
-                thumbnailSize: { width: 1, height: 1 }
-            },
-            (e: any, sources: any) => {
+                thumbnailSize: { width: 1, height: 1 },
+            })
+            .then((sources) => {
                 const selectSource = sources.filter(
                     (source: any) => source.display_id + '' === curScreen.id + ''
                 )[0];
-                navigator.getUserMedia(
-                    {
+                navigator.mediaDevices
+                    .getUserMedia({
                         audio: false,
                         video: {
                             // @ts-ignore
                             mandatory: {
                                 chromeMediaSource: 'desktop',
-                                chromeMediaSourceId: selectSource.id + ''
+                                chromeMediaSourceId: selectSource.id + '',
                                 // minWidth: 3,
                                 // minHeight: 3,
                                 // maxWidth: maxSize,
                                 // maxHeight: maxSize
-                            }
-                        }
-                    },
-                    (e: MediaStream) => {
+                            },
+                        },
+                    })
+                    .then((e: MediaStream) => {
                         handleStream(e);
-                    },
-                    handleError
-                );
-            }
-        );
+                    })
+                    .catch(handleError);
+            });
     } else {
-        navigator.getUserMedia(
-            {
+        navigator.mediaDevices
+            .getUserMedia({
                 audio: false,
                 video: {
                     // @ts-ignore
                     mandatory: {
                         chromeMediaSource: 'screen',
                         maxWidth: 1920,
-                        maxHeight: 1080
-                    }
-                }
-            },
-            (event: any) => {
+                        maxHeight: 1080,
+                    },
+                },
+            })
+            .then((event: any) => {
                 handleStream(event);
-            },
-            (err: Error) => {
+            })
+            .catch((err: Error) => {
                 console.trace(err);
                 handleError(err);
-            }
-        );
+            });
     }
 }
 
@@ -159,7 +154,7 @@ export async function getScreen(
                 const url = canvas.toDataURL('image/jpg', 0.1);
                 // remove Base64 stuff from the Image
                 const base64Data = url.replace(/^data:image\/png;base64,/, '');
-                fs.writeFile(filePath, base64Data, 'base64', err => {
+                fs.writeFile(filePath, base64Data, 'base64', (err) => {
                     if (err) {
                         console.log(err);
                     }
